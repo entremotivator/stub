@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
-import pdfkit
 from jinja2 import Template
-import os
+from io import BytesIO
+import pdfkit
 
 # Set up page title and header
 st.title("Pay Stub Generator")
@@ -84,47 +84,39 @@ st.header("5. Download Pay Stub")
 
 # PDF Generation Logic
 def generate_pdf():
-    try:
-        template = """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Pay Stub</title>
-        </head>
-        <body>
-            <h1>Pay Stub</h1>
-            <p><strong>Employee Name:</strong> {{ employee_name }}</p>
-            <p><strong>SSN:</strong> {{ ssn }}</p>
-            <p><strong>Employee ID:</strong> {{ employee_id }}</p>
-            <p><strong>Check Number:</strong> {{ check_number }}</p>
-            <p><strong>Pay Period:</strong> {{ pay_period_start }} to {{ pay_period_end }}</p>
-            <p><strong>Pay Date:</strong> {{ pay_date }}</p>
-            <h2>Earnings</h2>
-            <p><strong>Total Earnings:</strong> ${{ total_income:,.2f }}</p>
-            <h2>Deductions</h2>
-            <p><strong>Total Deductions:</strong> ${{ total_deductions:,.2f }}</p>
-            <h2>Net Pay</h2>
-            <p><strong>Net Pay:</strong> ${{ net_pay:,.2f }}</p>
-        </body>
-        </html>
-        """
-        html = Template(template).render(employee_name=employee_name, ssn=ssn, employee_id=employee_id,
-                                         check_number=check_number, pay_period_start=pay_period_start,
-                                         pay_period_end=pay_period_end, pay_date=pay_date,
-                                         total_income=total_income, total_deductions=total_deductions,
-                                         net_pay=net_pay)
+    template = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Pay Stub</title>
+    </head>
+    <body>
+        <h1>Pay Stub</h1>
+        <p><strong>Employee Name:</strong> {{ employee_name }}</p>
+        <p><strong>SSN:</strong> {{ ssn }}</p>
+        <p><strong>Employee ID:</strong> {{ employee_id }}</p>
+        <p><strong>Check Number:</strong> {{ check_number }}</p>
+        <p><strong>Pay Period:</strong> {{ pay_period_start }} to {{ pay_period_end }}</p>
+        <p><strong>Pay Date:</strong> {{ pay_date }}</p>
+        <h2>Earnings</h2>
+        <p><strong>Total Earnings:</strong> ${{ total_income:,.2f }}</p>
+        <h2>Deductions</h2>
+        <p><strong>Total Deductions:</strong> ${{ total_deductions:,.2f }}</p>
+        <h2>Net Pay</h2>
+        <p><strong>Net Pay:</strong> ${{ net_pay:,.2f }}</p>
+    </body>
+    </html>
+    """
+    html = Template(template).render(employee_name=employee_name, ssn=ssn, employee_id=employee_id,
+                                     check_number=check_number, pay_period_start=pay_period_start,
+                                     pay_period_end=pay_period_end, pay_date=pay_date,
+                                     total_income=total_income, total_deductions=total_deductions,
+                                     net_pay=net_pay)
 
-        # Check if wkhtmltopdf is available
-        if not os.path.exists("/usr/local/bin/wkhtmltopdf"):
-            raise OSError("wkhtmltopdf executable not found. Please install it to enable PDF generation.")
-        
-        pdf = pdfkit.from_string(html, False)
-        return pdf
-    except OSError as e:
-        st.error(f"Error generating PDF: {e}")
-        return None
+    pdf = pdfkit.from_string(html, False)
+    return pdf
 
 # Download Button for PDF
 if st.button("Generate PDF"):
