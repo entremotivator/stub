@@ -2,8 +2,10 @@ import streamlit as st
 import pandas as pd
 import pdfkit
 from jinja2 import Template
+import os
 
 # Set up page title and header
+st.set_page_config(page_title="Pay Stub Generator", layout="wide")
 st.title("Pay Stub Generator")
 st.write("Generate a customized pay stub with detailed earnings, deductions, and year-to-date summaries.")
 
@@ -90,38 +92,75 @@ def generate_pdf():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Pay Stub</title>
+        <style>
+            body { font-family: Arial, sans-serif; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+        </style>
     </head>
     <body>
         <h1>Pay Stub</h1>
-        <p><strong>Employee Name:</strong> {{ employee_name }}</p>
-        <p><strong>SSN:</strong> {{ ssn }}</p>
-        <p><strong>Employee ID:</strong> {{ employee_id }}</p>
-        <p><strong>Check Number:</strong> {{ check_number }}</p>
-        <p><strong>Pay Period:</strong> {{ pay_period_start }} to {{ pay_period_end }}</p>
-        <p><strong>Pay Date:</strong> {{ pay_date }}</p>
+        <table>
+            <tr><th>Employee Name</th><td>{{ employee_name }}</td></tr>
+            <tr><th>SSN</th><td>{{ ssn }}</td></tr>
+            <tr><th>Employee ID</th><td>{{ employee_id }}</td></tr>
+            <tr><th>Check Number</th><td>{{ check_number }}</td></tr>
+            <tr><th>Pay Period</th><td>{{ pay_period_start }} to {{ pay_period_end }}</td></tr>
+            <tr><th>Pay Date</th><td>{{ pay_date }}</td></tr>
+        </table>
         <h2>Earnings</h2>
-        <p><strong>Total Earnings:</strong> ${{ total_income:,.2f }}</p>
+        <table>
+            <tr><th>Regular Pay</th><td>${{ regular_income:,.2f }}</td></tr>
+            <tr><th>Overtime Pay</th><td>${{ overtime_income:,.2f }}</td></tr>
+            <tr><th>Bonus</th><td>${{ bonus:,.2f }}</td></tr>
+            <tr><th>Total Earnings</th><td>${{ total_income:,.2f }}</td></tr>
+        </table>
         <h2>Deductions</h2>
-        <p><strong>Total Deductions:</strong> ${{ total_deductions:,.2f }}</p>
+        <table>
+            <tr><th>Federal Tax</th><td>${{ federal_tax:,.2f }}</td></tr>
+            <tr><th>Social Security Tax</th><td>${{ social_security_tax:,.2f }}</td></tr>
+            <tr><th>Medicare Tax</th><td>${{ medicare_tax:,.2f }}</td></tr>
+            <tr><th>State Tax</th><td>${{ state_tax:,.2f }}</td></tr>
+            <tr><th>Health Insurance</th><td>${{ health_insurance:,.2f }}</td></tr>
+            <tr><th>401k Contribution</th><td>${{ retirement_contribution:,.2f }}</td></tr>
+            <tr><th>Total Deductions</th><td>${{ total_deductions:,.2f }}</td></tr>
+        </table>
         <h2>Net Pay</h2>
-        <p><strong>Net Pay:</strong> ${{ net_pay:,.2f }}</p>
+        <table>
+            <tr><th>Net Pay</th><td>${{ net_pay:,.2f }}</td></tr>
+        </table>
     </body>
     </html>
     """
-    html = Template(template).render(employee_name=employee_name, ssn=ssn, employee_id=employee_id,
-                                     check_number=check_number, pay_period_start=pay_period_start,
-                                     pay_period_end=pay_period_end, pay_date=pay_date,
-                                     total_income=total_income, total_deductions=total_deductions,
-                                     net_pay=net_pay)
+    html = Template(template).render(
+        employee_name=employee_name, ssn=ssn, employee_id=employee_id,
+        check_number=check_number, pay_period_start=pay_period_start,
+        pay_period_end=pay_period_end, pay_date=pay_date,
+        regular_income=regular_income, overtime_income=overtime_income,
+        bonus=bonus, total_income=total_income,
+        federal_tax=federal_tax, social_security_tax=social_security_tax,
+        medicare_tax=medicare_tax, state_tax=state_tax,
+        health_insurance=health_insurance, retirement_contribution=retirement_contribution,
+        total_deductions=total_deductions, net_pay=net_pay
+    )
     try:
-        pdf = pdfkit.from_string(html, False)
+        # Specify the path to wkhtmltopdf executable
+        config = pdfkit.configuration(wkhtmltopdf='/usr/local/bin/wkhtmltopdf')
+        pdf = pdfkit.from_string(html, False, configuration=config)
         return pdf
-    except OSError as e:
-        st.error("PDF generation failed. Please ensure 'wkhtmltopdf' is installed and configured correctly.")
+    except Exception as e:
+        st.error(f"PDF generation failed: {str(e)}")
+        st.error("Please ensure 'wkhtmltopdf' is installed and configured correctly.")
         return None
 
 # Download Button for PDF
 if st.button("Generate PDF"):
     pdf_content = generate_pdf()
     if pdf_content:
-        st.download_button(label="Download Pay Stub as PDF", data=pdf_content, file_name="pay_stub.pdf", mime="application/pdf")
+        st.download_button(
+            label="Download Pay Stub as PDF",
+            data=pdf_content,
+            file_name="pay_stub.pdf",
+            mime="application/pdf"
+        )
