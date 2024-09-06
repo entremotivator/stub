@@ -1,3 +1,4 @@
 pdfkit
 jinja2
 pandas
+base64
