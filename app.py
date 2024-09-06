@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
-import pdfkit
 from jinja2 import Template
-import os
+import base64
+from weasyprint import HTML
 
 # Set up page title and header
 st.set_page_config(page_title="Pay Stub Generator", layout="wide")
@@ -93,8 +93,9 @@ def generate_pdf():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Pay Stub</title>
         <style>
-            body { font-family: Arial, sans-serif; }
-            table { width: 100%; border-collapse: collapse; }
+            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+            h1 { color: #333; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
             th { background-color: #f2f2f2; }
         </style>
@@ -121,14 +122,22 @@ def generate_pdf():
             <tr><th>Federal Tax</th><td>${{ federal_tax:,.2f }}</td></tr>
             <tr><th>Social Security Tax</th><td>${{ social_security_tax:,.2f }}</td></tr>
             <tr><th>Medicare Tax</th><td>${{ medicare_tax:,.2f }}</td></tr>
+            <tr><th>Additional Medicare Tax</th><td>${{ additional_medicare_tax:,.2f }}</td></tr>
             <tr><th>State Tax</th><td>${{ state_tax:,.2f }}</td></tr>
             <tr><th>Health Insurance</th><td>${{ health_insurance:,.2f }}</td></tr>
             <tr><th>401k Contribution</th><td>${{ retirement_contribution:,.2f }}</td></tr>
+            <tr><th>Other Deductions</th><td>${{ other_deductions:,.2f }}</td></tr>
             <tr><th>Total Deductions</th><td>${{ total_deductions:,.2f }}</td></tr>
         </table>
         <h2>Net Pay</h2>
         <table>
             <tr><th>Net Pay</th><td>${{ net_pay:,.2f }}</td></tr>
+        </table>
+        <h2>Year-to-Date Summary</h2>
+        <table>
+            <tr><th>YTD Gross Earnings</th><td>${{ ytd_gross:,.2f }}</td></tr>
+            <tr><th>YTD Deductions</th><td>${{ ytd_deductions:,.2f }}</td></tr>
+            <tr><th>YTD Net Pay</th><td>${{ ytd_net_pay:,.2f }}</td></tr>
         </table>
     </body>
     </html>
@@ -140,27 +149,21 @@ def generate_pdf():
         regular_income=regular_income, overtime_income=overtime_income,
         bonus=bonus, total_income=total_income,
         federal_tax=federal_tax, social_security_tax=social_security_tax,
-        medicare_tax=medicare_tax, state_tax=state_tax,
-        health_insurance=health_insurance, retirement_contribution=retirement_contribution,
-        total_deductions=total_deductions, net_pay=net_pay
+        medicare_tax=medicare_tax, additional_medicare_tax=additional_medicare_tax,
+        state_tax=state_tax, health_insurance=health_insurance,
+        retirement_contribution=retirement_contribution, other_deductions=other_deductions,
+        total_deductions=total_deductions, net_pay=net_pay,
+        ytd_gross=ytd_gross, ytd_deductions=ytd_deductions, ytd_net_pay=ytd_net_pay
     )
-    try:
-        # Specify the path to wkhtmltopdf executable
-        config = pdfkit.configuration(wkhtmltopdf='/usr/local/bin/wkhtmltopdf')
-        pdf = pdfkit.from_string(html, False, configuration=config)
-        return pdf
-    except Exception as e:
-        st.error(f"PDF generation failed: {str(e)}")
-        st.error("Please ensure 'wkhtmltopdf' is installed and configured correctly.")
-        return None
+    
+    # Generate PDF using WeasyPrint
+    pdf = HTML(string=html).write_pdf()
+    return pdf
 
 # Download Button for PDF
 if st.button("Generate PDF"):
     pdf_content = generate_pdf()
     if pdf_content:
-        st.download_button(
-            label="Download Pay Stub as PDF",
-            data=pdf_content,
-            file_name="pay_stub.pdf",
-            mime="application/pdf"
-        )
+        b64 = base64.b64encode(pdf_content).decode()
+        href = f'<a href="data:application/pdf;base64,{b64}" download="pay_stub.pdf">Download Pay Stub PDF</a>'
+        st.markdown(href, unsafe_allow_html=True)
