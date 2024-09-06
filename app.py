@@ -1,11 +1,10 @@
 import streamlit as st
 import pandas as pd
+import pdfkit
 from jinja2 import Template
-import base64
-from weasyprint import HTML
+import os
 
 # Set up page title and header
-st.set_page_config(page_title="Pay Stub Generator", layout="wide")
 st.title("Pay Stub Generator")
 st.write("Generate a customized pay stub with detailed earnings, deductions, and year-to-date summaries.")
 
@@ -85,85 +84,50 @@ st.header("5. Download Pay Stub")
 
 # PDF Generation Logic
 def generate_pdf():
-    template = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Pay Stub</title>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-            h1 { color: #333; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
-        </style>
-    </head>
-    <body>
-        <h1>Pay Stub</h1>
-        <table>
-            <tr><th>Employee Name</th><td>{{ employee_name }}</td></tr>
-            <tr><th>SSN</th><td>{{ ssn }}</td></tr>
-            <tr><th>Employee ID</th><td>{{ employee_id }}</td></tr>
-            <tr><th>Check Number</th><td>{{ check_number }}</td></tr>
-            <tr><th>Pay Period</th><td>{{ pay_period_start }} to {{ pay_period_end }}</td></tr>
-            <tr><th>Pay Date</th><td>{{ pay_date }}</td></tr>
-        </table>
-        <h2>Earnings</h2>
-        <table>
-            <tr><th>Regular Pay</th><td>${{ regular_income:,.2f }}</td></tr>
-            <tr><th>Overtime Pay</th><td>${{ overtime_income:,.2f }}</td></tr>
-            <tr><th>Bonus</th><td>${{ bonus:,.2f }}</td></tr>
-            <tr><th>Total Earnings</th><td>${{ total_income:,.2f }}</td></tr>
-        </table>
-        <h2>Deductions</h2>
-        <table>
-            <tr><th>Federal Tax</th><td>${{ federal_tax:,.2f }}</td></tr>
-            <tr><th>Social Security Tax</th><td>${{ social_security_tax:,.2f }}</td></tr>
-            <tr><th>Medicare Tax</th><td>${{ medicare_tax:,.2f }}</td></tr>
-            <tr><th>Additional Medicare Tax</th><td>${{ additional_medicare_tax:,.2f }}</td></tr>
-            <tr><th>State Tax</th><td>${{ state_tax:,.2f }}</td></tr>
-            <tr><th>Health Insurance</th><td>${{ health_insurance:,.2f }}</td></tr>
-            <tr><th>401k Contribution</th><td>${{ retirement_contribution:,.2f }}</td></tr>
-            <tr><th>Other Deductions</th><td>${{ other_deductions:,.2f }}</td></tr>
-            <tr><th>Total Deductions</th><td>${{ total_deductions:,.2f }}</td></tr>
-        </table>
-        <h2>Net Pay</h2>
-        <table>
-            <tr><th>Net Pay</th><td>${{ net_pay:,.2f }}</td></tr>
-        </table>
-        <h2>Year-to-Date Summary</h2>
-        <table>
-            <tr><th>YTD Gross Earnings</th><td>${{ ytd_gross:,.2f }}</td></tr>
-            <tr><th>YTD Deductions</th><td>${{ ytd_deductions:,.2f }}</td></tr>
-            <tr><th>YTD Net Pay</th><td>${{ ytd_net_pay:,.2f }}</td></tr>
-        </table>
-    </body>
-    </html>
-    """
-    html = Template(template).render(
-        employee_name=employee_name, ssn=ssn, employee_id=employee_id,
-        check_number=check_number, pay_period_start=pay_period_start,
-        pay_period_end=pay_period_end, pay_date=pay_date,
-        regular_income=regular_income, overtime_income=overtime_income,
-        bonus=bonus, total_income=total_income,
-        federal_tax=federal_tax, social_security_tax=social_security_tax,
-        medicare_tax=medicare_tax, additional_medicare_tax=additional_medicare_tax,
-        state_tax=state_tax, health_insurance=health_insurance,
-        retirement_contribution=retirement_contribution, other_deductions=other_deductions,
-        total_deductions=total_deductions, net_pay=net_pay,
-        ytd_gross=ytd_gross, ytd_deductions=ytd_deductions, ytd_net_pay=ytd_net_pay
-    )
-    
-    # Generate PDF using WeasyPrint
-    pdf = HTML(string=html).write_pdf()
-    return pdf
+    try:
+        template = """
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Pay Stub</title>
+        </head>
+        <body>
+            <h1>Pay Stub</h1>
+            <p><strong>Employee Name:</strong> {{ employee_name }}</p>
+            <p><strong>SSN:</strong> {{ ssn }}</p>
+            <p><strong>Employee ID:</strong> {{ employee_id }}</p>
+            <p><strong>Check Number:</strong> {{ check_number }}</p>
+            <p><strong>Pay Period:</strong> {{ pay_period_start }} to {{ pay_period_end }}</p>
+            <p><strong>Pay Date:</strong> {{ pay_date }}</p>
+            <h2>Earnings</h2>
+            <p><strong>Total Earnings:</strong> ${{ total_income:,.2f }}</p>
+            <h2>Deductions</h2>
+            <p><strong>Total Deductions:</strong> ${{ total_deductions:,.2f }}</p>
+            <h2>Net Pay</h2>
+            <p><strong>Net Pay:</strong> ${{ net_pay:,.2f }}</p>
+        </body>
+        </html>
+        """
+        html = Template(template).render(employee_name=employee_name, ssn=ssn, employee_id=employee_id,
+                                         check_number=check_number, pay_period_start=pay_period_start,
+                                         pay_period_end=pay_period_end, pay_date=pay_date,
+                                         total_income=total_income, total_deductions=total_deductions,
+                                         net_pay=net_pay)
+
+        # Check if wkhtmltopdf is available
+        if not os.path.exists("/usr/local/bin/wkhtmltopdf"):
+            raise OSError("wkhtmltopdf executable not found. Please install it to enable PDF generation.")
+        
+        pdf = pdfkit.from_string(html, False)
+        return pdf
+    except OSError as e:
+        st.error(f"Error generating PDF: {e}")
+        return None
 
 # Download Button for PDF
 if st.button("Generate PDF"):
     pdf_content = generate_pdf()
     if pdf_content:
-        b64 = base64.b64encode(pdf_content).decode()
-        href = f'<a href="data:application/pdf;base64,{b64}" download="pay_stub.pdf">Download Pay Stub PDF</a>'
-        st.markdown(href, unsafe_allow_html=True)
+        st.download_button(label="Download Pay Stub as PDF", data=pdf_content, file_name="pay_stub.pdf", mime="application/pdf")
