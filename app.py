@@ -100,26 +100,28 @@ def generate_pdf():
         <p><strong>Pay Period:</strong> {{ pay_period_start }} to {{ pay_period_end }}</p>
         <p><strong>Pay Date:</strong> {{ pay_date }}</p>
         <h2>Earnings</h2>
-        <p><strong>Total Earnings:</strong> ${{ total_income }}</p>
+        <p><strong>Total Earnings:</strong> ${{ total_income:,.2f }}</p>
         <h2>Deductions</h2>
-        <p><strong>Total Deductions:</strong> ${{ total_deductions }}</p>
+        <p><strong>Total Deductions:</strong> ${{ total_deductions:,.2f }}</p>
         <h2>Net Pay</h2>
-        <p><strong>Net Pay:</strong> ${{ net_pay }}</p>
+        <p><strong>Net Pay:</strong> ${{ net_pay:,.2f }}</p>
     </body>
     </html>
     """
-    # Convert datetime to strings for rendering in the template
     html = Template(template).render(employee_name=employee_name, ssn=ssn, employee_id=employee_id,
-                                     check_number=check_number, pay_period_start=pay_period_start.strftime('%Y-%m-%d'),
-                                     pay_period_end=pay_period_end.strftime('%Y-%m-%d'),
-                                     pay_date=pay_date.strftime('%Y-%m-%d'),
-                                     total_income=f"{total_income:,.2f}",
-                                     total_deductions=f"{total_deductions:,.2f}",
-                                     net_pay=f"{net_pay:,.2f}")
-    pdf = pdfkit.from_string(html, False)
-    return pdf
+                                     check_number=check_number, pay_period_start=pay_period_start,
+                                     pay_period_end=pay_period_end, pay_date=pay_date,
+                                     total_income=total_income, total_deductions=total_deductions,
+                                     net_pay=net_pay)
+    try:
+        pdf = pdfkit.from_string(html, False)
+        return pdf
+    except OSError as e:
+        st.error("PDF generation failed. Please ensure 'wkhtmltopdf' is installed and configured correctly.")
+        return None
 
 # Download Button for PDF
 if st.button("Generate PDF"):
     pdf_content = generate_pdf()
-    st.download_button(label="Download Pay Stub as PDF", data=pdf_content, file_name="pay_stub.pdf", mime="application/pdf")
+    if pdf_content:
+        st.download_button(label="Download Pay Stub as PDF", data=pdf_content, file_name="pay_stub.pdf", mime="application/pdf")
